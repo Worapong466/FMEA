@@ -20,7 +20,10 @@ async function api(action, payload = {}) {
     };
 
     const receive = (event) => {
-      if (event.source !== frame.contentWindow) return;
+      const receive = (event) => {
+
+  const msg = event.data;
+  if (!msg || msg.type !== "FMEA_API_RESPONSE" || msg.requestId !== id) return;
 
       const msg = event.data;
       if (!msg || msg.type !== "FMEA_API_RESPONSE" || msg.requestId !== id) return;
