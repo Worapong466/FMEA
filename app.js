@@ -20,23 +20,24 @@ async function api(action, payload = {}) {
     };
 
     const receive = (event) => {
-      const receive = (event) => {
-
   const msg = event.data;
-  if (!msg || msg.type !== "FMEA_API_RESPONSE" || msg.requestId !== id) return;
 
-      const msg = event.data;
-      if (!msg || msg.type !== "FMEA_API_RESPONSE" || msg.requestId !== id) return;
+  if (
+    !msg ||
+    msg.type !== "FMEA_API_RESPONSE" ||
+    msg.requestId !== id
+  ) return;
 
-      cleanup();
+  cleanup();
 
-      const data = msg.data || {};
-      if (data.ok) {
-        resolve(data);
-      } else {
-        reject(new Error(data.error || "ไม่สามารถเชื่อมต่อฐานข้อมูลได้"));
-      }
-    };
+  const data = msg.data || {};
+
+  if (data.ok) {
+    resolve(data);
+  } else {
+    reject(new Error(data.error || "ไม่สามารถเชื่อมต่อฐานข้อมูลได้"));
+  }
+};
 
     window.addEventListener("message", receive);
     document.body.appendChild(frame);
