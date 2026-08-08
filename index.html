@@ -1,95 +1,273 @@
-<!doctype html>
-<html lang="th">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#102f50" />
-  <title>SolarCellDIY Service FMEA</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div id="loginScreen" class="login-screen">
-    <form id="loginForm" class="login-card">
-      <div class="brand-mark">☀</div>
-      <p class="eyebrow">SOLARCELLDIY SERVICE</p>
-      <h1>FMEA & Knowledge Base</h1>
-      <p class="muted">คลังปัญหา วิธีตรวจสอบ และวิธีแก้ไขสำหรับทีมงาน</p>
-      <label>รหัสพนักงาน<input id="employeeCode" autocomplete="off" required placeholder="กรอกรหัสพนักงาน" /></label>
-      <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
-      <p id="loginMessage" class="message"></p>
-    </form>
-  </div>
+const SPREADSHEET_ID = '1EC82GEyTElwRFKruyVlMCyYbnm11sOzIhRwg5BK9bJk';
+const CASE_SHEET = 'FMEA_Cases';
+const STAFF_SHEET = 'Staff';
 
-  <div id="app" class="app hidden">
-    <aside class="sidebar">
-      <div><p class="eyebrow yellow">SOLARCELLDIY</p><h2>Service FMEA</h2></div>
-      <nav>
-        <button class="nav-btn active" data-view="dashboard">ภาพรวม</button>
-        <button class="nav-btn" data-view="knowledge">ค้นหาวิธีแก้</button>
-        <button class="nav-btn" data-view="newcase">+ บันทึกเคสใหม่</button>
-      </nav>
-      <div class="sidebar-bottom"><span id="staffName">-</span><button id="logoutBtn" class="link-btn">ออกจากระบบ</button></div>
-    </aside>
+function doGet(e) {
+  const callback = String(
+    (e && e.parameter && e.parameter.callback) || ''
+  ).trim();
 
-    <main class="main">
-      <header class="topbar"><div><p class="eyebrow">SERVICE KNOWLEDGE SYSTEM</p><h1 id="pageTitle">ภาพรวมงานบริการ</h1></div><button id="refreshBtn" class="btn secondary">รีเฟรชข้อมูล</button></header>
+  if (!callback) {
+    return json_({
+      ok: true,
+      service: 'SolarCellDIY FMEA API',
+      version: 'v5'
+    });
+  }
 
-      <section id="dashboard" class="view active-view">
-        <div class="kpi-grid">
-          <div class="kpi"><span>เคสทั้งหมด</span><strong id="kpiTotal">0</strong></div>
-          <div class="kpi"><span>กำลังดำเนินการ</span><strong id="kpiOpen">0</strong></div>
-          <div class="kpi risk"><span>RPN ≥ 100</span><strong id="kpiRisk">0</strong></div>
-          <div class="kpi"><span>กลุ่มปัญหา</span><strong id="kpiGroups">0</strong></div>
-        </div>
-        <div class="two-col">
-          <div class="panel"><div class="panel-head"><h3>ปัญหาที่เกิดซ้ำบ่อย</h3><span>เรียงตามจำนวนเคส</span></div><div id="groupList" class="group-list empty">ยังไม่มีข้อมูล</div></div>
-          <div class="panel"><div class="panel-head"><h3>เคสล่าสุด</h3><span>อัปเดตจากฐานข้อมูลกลาง</span></div><div id="recentCases" class="case-list empty">ยังไม่มีข้อมูล</div></div>
-        </div>
-      </section>
+  try {
+    const req = JSON.parse(
+      (e.parameter && e.parameter.payload) || '{}'
+    );
 
-      <section id="knowledge" class="view">
-        <div class="search-hero">
-          <p class="eyebrow yellow-text">Q&A / TROUBLESHOOTING</p>
-          <h2>ค้นหาอาการ แล้วดูวิธีแก้จากเคสที่เคยทำจริง</h2>
-          <div class="search-box"><input id="searchInput" placeholder="เช่น Deye F56, Battery ไม่ Communication, WiFi Offline..." /><button id="searchBtn" class="btn primary">ค้นหา</button></div>
-          <div class="filters"><select id="brandFilter"><option value="">ทุกแบรนด์</option></select><select id="systemFilter"><option value="">ทุกระบบ</option></select><select id="groupFilter"><option value="">ทุกกลุ่มปัญหา</option></select></div>
-        </div>
-        <p id="searchSummary" class="result-summary"></p>
-        <div id="searchResults" class="results empty">พิมพ์อาการหรือ Error Code เพื่อค้นหา</div>
-      </section>
+    return js_(callback, handleRequest_(req, false));
 
-      <section id="newcase" class="view">
-        <form id="caseForm" class="panel form-panel">
-          <div class="panel-head"><div><h3>บันทึกเคสลูกค้า</h3><span>ข้อมูลนี้จะกลายเป็น Knowledge Base ให้ทีมงานค้นหาในครั้งต่อไป</span></div><span id="rpnBadge" class="rpn-badge low">RPN 1</span></div>
-          <div class="form-grid">
-            <label>ชื่อลูกค้า<input name="customerName" required /></label><label>เบอร์โทร<input name="phone" /></label>
-            <label>ช่องทางติดต่อ<select name="channel"><option>โทรศัพท์</option><option>LINE</option><option>Facebook</option><option>หน้าร้าน</option><option>ช่างหน้างาน</option><option>อื่นๆ</option></select></label>
-            <label>ประเภทระบบ<select name="systemType"><option>Hybrid</option><option>On-Grid</option><option>Off-Grid</option><option>แบตเตอรี่</option><option>แผงโซลาร์เซลล์</option><option>อุปกรณ์ป้องกัน</option><option>อื่นๆ</option></select></label>
-            <label>แบรนด์<input name="brand" placeholder="Deye / Luxpower / Solis / SRNE ..." /></label><label>รุ่นสินค้า<input name="model" /></label>
-            <label>Serial Number<input name="serial" /></label><label>Error Code<input name="errorCode" placeholder="ถ้ามี" /></label>
-            <label class="wide">กลุ่มปัญหา<input name="problemGroup" list="groupSuggestions" required placeholder="เช่น Battery Communication / Inverter ไม่จ่ายไฟ / WiFi Offline" /><datalist id="groupSuggestions"></datalist></label>
-            <label class="wide">คำถาม / อาการ / ปัญหา<textarea name="problem" required rows="3"></textarea></label>
-            <label class="wide">สาเหตุที่คาดว่าเกิด<textarea name="cause" rows="2"></textarea></label>
-            <label class="wide">วิธีตรวจสอบ<textarea name="checkMethod" rows="3"></textarea></label>
-            <label class="wide">วิธีแก้ไข<textarea name="solution" required rows="3"></textarea></label>
-            <label class="wide">ผลลัพธ์<textarea name="result" rows="2" placeholder="เช่น ทดสอบแล้วใช้งานได้ปกติ"></textarea></label>
-            <label>S ความรุนแรง (1–10)<input name="s" type="number" min="1" max="10" value="1" required /></label>
-            <label>O โอกาสเกิด (1–10)<input name="o" type="number" min="1" max="10" value="1" required /></label>
-            <label>D โอกาสตรวจไม่พบ (1–10)<input name="d" type="number" min="1" max="10" value="1" required /></label>
-            <label>สถานะ<select name="status"><option>รับเรื่อง</option><option>กำลังตรวจสอบ</option><option>รอลูกค้า</option><option>รออะไหล่</option><option>นัดติดตาม</option><option>ปิดงาน</option></select></label>
-            <label>วันที่นัดติดตาม<input name="followUp" type="date" /></label><label>หมายเหตุ<input name="note" /></label>
-          </div>
-          <div class="form-actions"><button type="reset" class="btn secondary">ล้างข้อมูล</button><button type="submit" class="btn primary">บันทึกลง FMEA</button></div>
-          <p id="saveMessage" class="message"></p>
-        </form>
-      </section>
-    </main>
-  </div>
+  } catch (err) {
+    return js_(callback, {
+      ok: false,
+      error: String(err.message || err)
+    });
+  }
+}
 
-  <script src="config.js"></script>
-  <script src="app.js?v=4"></script>
-</body>
-</html>
+function doPost(e) {
+  try {
+    const req =
+      e.parameter && e.parameter.payload
+        ? JSON.parse(e.parameter.payload)
+        : JSON.parse(
+            (e.postData && e.postData.contents) || '{}'
+          );
+
+    return json_(handleRequest_(req, true));
+
+  } catch (err) {
+    return json_({
+      ok: false,
+      error: String(err.message || err)
+    });
+  }
+}
+
+function handleRequest_(req, allowSave) {
+  const staff = validateStaff_(req.code);
+
+  if (!staff) {
+    return {
+      ok: false,
+      error: 'รหัสพนักงานไม่ถูกต้อง หรือถูกระงับการใช้งาน'
+    };
+  }
+
+  if (req.action === 'login') {
+    return {
+      ok: true,
+      staff: staff
+    };
+  }
+
+  if (req.action === 'list') {
+    return {
+      ok: true,
+      cases: listCases_()
+    };
+  }
+
+  if (req.action === 'save' && allowSave) {
+    return saveCase_(req.caseData || {}, staff);
+  }
+
+  if (req.action === 'save') {
+    return {
+      ok: false,
+      error: 'คำสั่งบันทึกต้องใช้ POST'
+    };
+  }
+
+  return {
+    ok: false,
+    error: 'ไม่รู้จักคำสั่งที่ส่งมา'
+  };
+}
+
+function validateStaff_(code) {
+  code = String(code || '')
+    .trim()
+    .toUpperCase();
+
+  if (!code) return null;
+
+  const sh = SpreadsheetApp
+    .openById(SPREADSHEET_ID)
+    .getSheetByName(STAFF_SHEET);
+
+  const last = sh.getLastRow();
+
+  if (last < 2) return null;
+
+  const rows = sh
+    .getRange(2, 1, last - 1, 4)
+    .getDisplayValues();
+
+  const row = rows.find(r =>
+    String(r[0]).trim().toUpperCase() === code &&
+    String(r[3]).trim() === 'ใช้งาน'
+  );
+
+  return row
+    ? {
+        code: row[0],
+        name: row[1],
+        role: row[2]
+      }
+    : null;
+}
+
+function listCases_() {
+  const sh = SpreadsheetApp
+    .openById(SPREADSHEET_ID)
+    .getSheetByName(CASE_SHEET);
+
+  const last = sh.getLastRow();
+
+  if (last < 2) return [];
+
+  return sh
+    .getRange(2, 1, last - 1, 26)
+    .getDisplayValues()
+    .filter(r => r[0])
+    .map(r => ({
+      caseId: r[0],
+      receivedAt: r[1],
+      customerName: r[2],
+      phone: r[3],
+      channel: r[4],
+      systemType: r[5],
+      brand: r[6],
+      model: r[7],
+      serial: r[8],
+      errorCode: r[9],
+      problem: r[10],
+      cause: r[11],
+      checkMethod: r[12],
+      solution: r[13],
+      result: r[14],
+      s: r[15],
+      o: r[16],
+      d: r[17],
+      rpn: r[18],
+      risk: r[19],
+      status: r[20],
+      owner: r[21],
+      followUp: r[22],
+      note: r[23],
+      updatedAt: r[24],
+      problemGroup: r[25]
+    }));
+}
+
+function saveCase_(d, staff) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    const sh = SpreadsheetApp
+      .openById(SPREADSHEET_ID)
+      .getSheetByName(CASE_SHEET);
+
+    const s = bounded_(d.s);
+    const o = bounded_(d.o);
+    const det = bounded_(d.d);
+
+    const rpn = s * o * det;
+
+    const risk =
+      rpn >= 200 ? 'วิกฤต' :
+      rpn >= 100 ? 'สูง' :
+      rpn >= 50 ? 'ปานกลาง' :
+      'ต่ำ';
+
+    const now = new Date();
+
+    const caseId =
+      'CASE-' +
+      Utilities.formatDate(
+        now,
+        'Asia/Bangkok',
+        'yyyyMMdd-HHmmss'
+      ) +
+      '-' +
+      String(Math.floor(Math.random() * 90) + 10);
+
+    sh.appendRow([
+      caseId,
+      now,
+      clean_(d.customerName),
+      clean_(d.phone),
+      clean_(d.channel),
+      clean_(d.systemType),
+      clean_(d.brand),
+      clean_(d.model),
+      clean_(d.serial),
+      clean_(d.errorCode),
+      clean_(d.problem),
+      clean_(d.cause),
+      clean_(d.checkMethod),
+      clean_(d.solution),
+      clean_(d.result),
+      s,
+      o,
+      det,
+      rpn,
+      risk,
+      clean_(d.status) || 'รับเรื่อง',
+      staff.code,
+      clean_(d.followUp),
+      clean_(d.note),
+      now,
+      clean_(d.problemGroup)
+    ]);
+
+    return {
+      ok: true,
+      caseId: caseId,
+      rpn: rpn,
+      risk: risk
+    };
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function bounded_(v) {
+  v = Math.round(Number(v) || 1);
+  return Math.max(1, Math.min(10, v));
+}
+
+function clean_(v) {
+  return String(v || '')
+    .trim()
+    .slice(0, 5000);
+}
+
+function json_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function js_(callback, obj) {
+  callback = String(callback || '')
+    .replace(/[^A-Za-z0-9_$]/g, '');
+
+  if (!callback) {
+    return json_(obj);
+  }
+
+  return ContentService
+    .createTextOutput(
+      callback + '(' + JSON.stringify(obj) + ');'
+    )
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
